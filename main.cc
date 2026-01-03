@@ -3,6 +3,11 @@
 #include "vec3.h"
 #include "raytracer.h"
 #include "sphere.h"
+#include <vector>
+
+#define STBI_MSC_SECURE_CRT
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 #define degtorad(angle) angle * MPI / 180
 
@@ -162,62 +167,68 @@ int main()
     std::vector<Color> framebufferCopy;
     framebufferCopy.resize(w * h);
 
+
+
+
+
+
     // rendering loop
-    while (wnd.IsOpen() && !exit)
+    moveDir = { 0,0,0 };
+
+
+    mat4 xMat = (rotationx(0));
+    mat4 yMat = (rotationy(0));
+    mat4 cameraTransform = multiply(yMat, xMat);
+
+
+
+    cameraTransform.m30 = camPos.x;
+    cameraTransform.m31 = camPos.y;
+    cameraTransform.m32 = camPos.z;
+
+    rt.SetViewMatrix(cameraTransform);
+
+
+    rt.Raytrace();
+    frameIndex++;
+
+    // Get the average distribution of all samples
     {
-        resetFramebuffer = false;
-        moveDir = {0,0,0};
-        pitch = 0;
-        yaw = 0;
-
-        // poll input
-        wnd.Update();
-
-        rotx -= pitch;
-        roty -= yaw;
-
-        moveDir = normalize(moveDir);
-
-        mat4 xMat = (rotationx(rotx));
-        mat4 yMat = (rotationy(roty));
-        mat4 cameraTransform = multiply(yMat, xMat);
-
-        camPos = camPos + transform(moveDir * 0.2f, cameraTransform);
-        
-        cameraTransform.m30 = camPos.x;
-        cameraTransform.m31 = camPos.y;
-        cameraTransform.m32 = camPos.z;
-
-        rt.SetViewMatrix(cameraTransform);
-        
-        if (resetFramebuffer)
+        size_t p = 0;
+        for (Color const& pixel : framebuffer)
         {
-            rt.Clear();
-            frameIndex = 0;
+            framebufferCopy[p] = pixel;
+            framebufferCopy[p].r /= frameIndex;
+            framebufferCopy[p].g /= frameIndex;
+            framebufferCopy[p].b /= frameIndex;
+            p++;
         }
-
-        rt.Raytrace();
-        frameIndex++;
-
-        // Get the average distribution of all samples
-        {
-            size_t p = 0;
-            for (Color const& pixel : framebuffer)
-            {
-                framebufferCopy[p] = pixel;
-                framebufferCopy[p].r /= frameIndex;
-                framebufferCopy[p].g /= frameIndex;
-                framebufferCopy[p].b /= frameIndex;
-                p++;
-            }
-        }
-
-        glClearColor(0, 0, 0, 1.0);
-        glClear( GL_COLOR_BUFFER_BIT );
-
-        wnd.Blit((float*)&framebufferCopy[0], w, h);
-        wnd.SwapBuffers();
     }
+
+    
+    // Image pixel array
+    std::vector<uint8_t> imagePixels(w * h * 3);
+    int index = 0;
+    int i = 0;
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            int index = (y * w + x) * 3;
+            imagePixels[index++] = static_cast<uint8_t>(framebufferCopy[i].r * 255);    // Red gradient
+            imagePixels[index++] = static_cast<uint8_t>(framebufferCopy[i].g * 255);    // Green gradient
+            imagePixels[index++] = static_cast<uint8_t>(framebufferCopy[i].b * 255);    // Blue gradient
+            i++;
+        }
+    }
+    index = (int)imagePixels[0];
+    stbi_write_jpg("render.jpg", w, h, 3, &imagePixels, 90);
+    
+
+    glClearColor(0, 0, 0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+
+    wnd.Blit((float*)&framebufferCopy[0], w, h);
+    wnd.SwapBuffers();
 
     if (wnd.IsOpen())
         wnd.Close();

@@ -220,7 +220,7 @@ int main()
         }
     }
     index = (int)imagePixels[0];
-    stbi_write_jpg("render.jpg", w, h, 3, &imagePixels, 90);
+    stbi_write_jpg("ImageRender.jpg", w, h, 3, imagePixels.data(), 90);
     
 
     glClearColor(0, 0, 0, 1.0);
